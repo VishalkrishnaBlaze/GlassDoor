@@ -4,21 +4,27 @@ from datetime import datetime, timedelta
 import numpy as np
 import platform
 import pickle
+import os
 
-# Set this depending on your camera type:
-# - True = Raspberry Pi 2.x camera module
-# - False = USB webcam or other USB video input (like an HDMI capture device)
-USING_RPI_CAMERA_MODULE = False
+#--------------------------------------------#
+# Set this depending on your camera type (boolean)
+#--------------------------------------------#
 
 # Our list of known face encodings and a matching list of metadata about each face.
 known_face_encodings = []
 known_face_metadata = []
 
+#--------------------------------------------#
+# INSERT 'get_jetson_gstreamer_source' FUNCTION
+#--------------------------------------------#
+
+clear = lambda: os.system("cls")
 
 def save_known_faces():
     with open("known_faces.dat", "wb") as face_data_file:
         face_data = [known_face_encodings, known_face_metadata]
         pickle.dump(face_data, face_data_file)
+        clear()
         print("Known faces backed up to disk.")
 
 
@@ -28,25 +34,12 @@ def load_known_faces():
     try:
         with open("known_faces.dat", "rb") as face_data_file:
             known_face_encodings, known_face_metadata = pickle.load(face_data_file)
+            clear()
             print("Known faces loaded from disk.")
     except FileNotFoundError as e:
+        clear()
         print("No previous face data found - starting with a blank known face list.")
         pass
-
-
-def get_jetson_gstreamer_source(capture_width=1280, capture_height=720, display_width=1280, display_height=720, framerate=60, flip_method=0):
-    """
-    Return an OpenCV-compatible video source description that uses gstreamer to capture video from the RPI camera on a Jetson Nano
-    """
-    return (
-            f'nvarguscamerasrc ! video/x-raw(memory:NVMM), ' +
-            f'width=(int){capture_width}, height=(int){capture_height}, ' +
-            f'format=(string)NV12, framerate=(fraction){framerate}/1 ! ' +
-            f'nvvidconv flip-method={flip_method} ! ' +
-            f'video/x-raw, width=(int){display_width}, height=(int){display_height}, format=(string)BGRx ! ' +
-            'videoconvert ! video/x-raw, format=(string)BGR ! appsink'
-            )
-
 
 def register_new_face(face_encoding, face_image):
     """
@@ -108,14 +101,12 @@ def lookup_known_face(face_encoding):
 
 
 def main_loop():
-    # Get access to the webcam. The method is different depending on if you are using a Raspberry Pi camera or USB input.
-    if USING_RPI_CAMERA_MODULE:
-        # Accessing the camera with OpenCV on a Jetson Nano requires gstreamer with a custom gstreamer source string
-        video_capture = cv2.VideoCapture(get_jetson_gstreamer_source(), cv2.CAP_GSTREAMER)
-    else:
-        # Accessing the camera with OpenCV on a laptop just requires passing in the number of the webcam (usually 0)
-        # Note: You can pass in a filename instead if you want to process a video file instead of a live camera stream
-        video_capture = cv2.VideoCapture(0)
+
+    #--------------------------------------------#
+    # INSERT IF-ELSE STATEMENT TO SWITCH CAMERA / REPLACE THE LINE BELOW
+    #--------------------------------------------#
+
+    video_capture = cv2.VideoCapture(0)
 
     # Track how long since we last saved a copy of our known faces to disk as a backup.
     number_of_faces_since_save = 0
