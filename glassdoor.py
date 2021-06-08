@@ -82,7 +82,7 @@ def lookup_known_face(face_encoding):
     # of the same person always were less than 0.6 away from each other.
     # Here, we are loosening the threshold a little bit to 0.65 because it is unlikely that two very similar
     # people will come up to the door at the same time.
-    if face_distances[best_match_index] < 0.65:
+    if face_distances[best_match_index] < 0.6:
         # If we have a match, look up the metadata we've saved for it (like the first time we saw it, etc)
         metadata = known_face_metadata[best_match_index]
 
