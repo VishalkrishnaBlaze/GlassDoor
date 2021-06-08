@@ -25,7 +25,7 @@ def save_known_faces():
         face_data = [known_face_encodings, known_face_metadata]
         pickle.dump(face_data, face_data_file)
         clear()
-        print("Known faces backed up to disk.")
+        print("[INFO] Known faces backed up to disk...")
 
 
 def load_known_faces():
@@ -35,10 +35,10 @@ def load_known_faces():
         with open("known_faces.dat", "rb") as face_data_file:
             known_face_encodings, known_face_metadata = pickle.load(face_data_file)
             clear()
-            print("Known faces loaded from disk.")
+            print("[INFO] Known faces loaded from disk...")
     except FileNotFoundError as e:
         clear()
-        print("No previous face data found - starting with a blank known face list.")
+        print("[INFO] No previous face data found - starting with a blank known face list...")
         pass
 
 def register_new_face(face_encoding, face_image):
