@@ -5,6 +5,8 @@ import numpy as np
 import platform
 import pickle
 import os
+import argparse
+import time
 
 #--------------------------------------------#
 # Set this depending on your camera type (boolean)
@@ -209,5 +211,21 @@ def main_loop():
 
 
 if __name__ == "__main__":
+
+    ap = argparse.ArgumentParser()
+    ap.add_argument("-r", "--reset", type=bool, default=False,
+    help="Delete previously saved data (default: False)")
+    args = vars(ap.parse_args())
+
+    if args["reset"] == True:
+        clear()
+        if os.path.exists("known_faces.dat"):
+            os.remove("known_faces.dat")
+            print("[INFO] The previously saved face data has been deleted.")
+            time.sleep(2)
+        else:
+            print("[INFO] There was no previously saved data, proceding without any changes...")
+            time.sleep(2)
+
     load_known_faces()
     main_loop()
