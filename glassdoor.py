@@ -1,12 +1,14 @@
-import face_recognition
-import cv2
-from datetime import datetime, timedelta
-import numpy as np
-import platform
-import pickle
-import os
 import argparse
+import cv2
+import face_recognition
+import numpy as np
+import os
+import pickle
+import platform
 import time
+
+from datetime import datetime, timedelta
+from user import add_user
 
 #--------------------------------------------#
 # Set this depending on your camera type (boolean)
@@ -15,6 +17,8 @@ import time
 # Our list of known face encodings and a matching list of metadata about each face.
 known_face_encodings = []
 known_face_metadata = []
+known_users_encodings = []
+known_users_names = []
 
 #--------------------------------------------#
 # INSERT 'get_jetson_gstreamer_source' FUNCTION
@@ -84,7 +88,7 @@ def lookup_known_face(face_encoding):
     # of the same person always were less than 0.6 away from each other.
     # Here, we are loosening the threshold a little bit to 0.65 because it is unlikely that two very similar
     # people will come up to the door at the same time.
-    if face_distances[best_match_index] < 0.6:
+    if face_distances[best_match_index] < 0.7:
         # If we have a match, look up the metadata we've saved for it (like the first time we saw it, etc)
         metadata = known_face_metadata[best_match_index]
 
@@ -101,14 +105,38 @@ def lookup_known_face(face_encoding):
 
     return metadata
 
+def load_saved_users(known_users_encodings, known_users_names):
+    """
+    load face encoding for the added users
+    """
+
+    # Locating the saved images of people known by their names
+    Resident_images_location = os.path.abspath('.')+'//Residents//'
+
+    # Loops over the saved JPEGs and load their face encoding to a list
+    for user_image_location in os.listdir(Resident_images_location):
+        if user_image_location.endswith('.jpeg'):
+            user_image = face_recognition.load_image_file(os.path.join(Resident_images_location, user_image_location))
+            user_encoding = face_recognition.face_encodings(user_image)[0]
+
+            known_users_encodings.append(user_encoding)
+
+            # also extract the names of saved users from JPEGs file's file name
+            known_users_names.append(user_image_location[:-5])    
 
 def main_loop():
+    """
+    The main function that initiates the camera module 
+    and starts capturing the frames to be analysed 
+    to count the number of visits and labeling the faces.
+    """
 
     #--------------------------------------------#
     # INSERT IF-ELSE STATEMENT TO SWITCH CAMERA / REPLACE THE LINE BELOW
     #--------------------------------------------#
 
-    video_capture = cv2.VideoCapture(0)
+    # Start capturing video
+    video_capture = cv2.VideoCapture(0, cv2.CAP_DSHOW)
 
     # Track how long since we last saved a copy of our known faces to disk as a backup.
     number_of_faces_since_save = 0
@@ -123,6 +151,9 @@ def main_loop():
         # Convert the image from BGR color (which OpenCV uses) to RGB color (which face_recognition uses)
         rgb_small_frame = small_frame[:, :, ::-1]
 
+        # load the encodings and names of the saved users in the Residents folder.
+        load_saved_users(known_users_encodings, known_users_names)
+
         # Find all the face locations and face encodings in the current frame of video
         face_locations = face_recognition.face_locations(rgb_small_frame)
         face_encodings = face_recognition.face_encodings(rgb_small_frame, face_locations)
@@ -130,7 +161,22 @@ def main_loop():
         # Loop through each detected face and see if it is one we have seen before
         # If so, we'll give it a label that we'll draw on top of the video.
         face_labels = []
+        names = []
+
         for face_location, face_encoding in zip(face_locations, face_encodings):
+            
+            # check if the face in the captured video is one of the saved users
+            matches = face_recognition.compare_faces(known_users_encodings, face_encoding)
+
+            # If match appen the user's name to the list or append 'Unknown Person'
+            if True in matches:
+                first_match_index = matches.index(True)
+                names.append(known_users_names[first_match_index])
+            
+            else:
+                names.append('Unknown Person')
+
+            
             # See if this face is in our list of known faces.
             metadata = lookup_known_face(face_encoding)
 
@@ -154,7 +200,7 @@ def main_loop():
             face_labels.append(face_label)
 
         # Draw a box around each face and label each face
-        for (top, right, bottom, left), face_label in zip(face_locations, face_labels):
+        for (top, right, bottom, left), face_label, name in zip(face_locations, face_labels, names):
             # Scale back up face locations since the frame we detected in was scaled to 1/4 size
             top *= 4
             right *= 4
@@ -167,6 +213,10 @@ def main_loop():
             # Draw a label with a name below the face
             cv2.rectangle(frame, (left, bottom - 35), (right, bottom), (0, 0, 255), cv2.FILLED)
             cv2.putText(frame, face_label, (left + 6, bottom - 6), cv2.FONT_HERSHEY_DUPLEX, 0.8, (255, 255, 255), 1)
+
+            # Write out the name of the visitor or label them as 'Unknown Person'
+            visitor_name = f"{name}"
+            cv2.putText(frame, visitor_name, (right - 55, top - 6), cv2.FONT_HERSHEY_DUPLEX, 0.6, (255, 255, 255), 1)
 
         # Display recent visitor images
         number_of_recent_visitors = 0
@@ -186,9 +236,7 @@ def main_loop():
                 cv2.putText(frame, visit_label, (x_position + 10, 170), cv2.FONT_HERSHEY_DUPLEX, 0.6, (255, 255, 255), 1)
 
         if number_of_recent_visitors > 0:
-            cv2.putText(frame, "Visitors at Door", (5, 18), cv2.FONT_HERSHEY_DUPLEX, 0.8, (255, 255, 255), 1)
-
-
+            cv2.putText(frame, "Visitor/s at Door", (5, 18), cv2.FONT_HERSHEY_DUPLEX, 0.8, (255, 255, 255), 1)
 
         # Display the final frame of video with boxes drawn around each detected fames
         cv2.imshow('Video', frame)
@@ -209,14 +257,19 @@ def main_loop():
     video_capture.release()
     cv2.destroyAllWindows()
 
-
 if __name__ == "__main__":
 
+    # Create arguments that can be passed to the program (reset, adduser, start)
     ap = argparse.ArgumentParser()
     ap.add_argument("-r", "--reset", type=bool, default=False,
     help="Delete previously saved data (default: False)")
+    ap.add_argument("-a", "--adduser", type=str,
+    help="Add a resident by giving resident name as argument (default: Resident)")
+    ap.add_argument("-s", "--start", type=bool, default=False,
+    help="Start the main program (default: False)")
     args = vars(ap.parse_args())
 
+    # Reset argument
     if args["reset"] == True:
         clear()
         if os.path.exists("known_faces.dat"):
@@ -226,6 +279,15 @@ if __name__ == "__main__":
         else:
             print("[INFO] There was no previously saved data, proceding without any changes...")
             time.sleep(2)
+    
+    # Adduser argument
+    if args["adduser"] is not None:
+        clear()
+        user = add_user()
+        user.save(args["adduser"])
 
-    load_known_faces()
-    main_loop()
+    # Start the Main function Argument
+    if args["start"] == True:
+        clear()
+        load_known_faces()
+        main_loop()
