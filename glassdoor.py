@@ -1,3 +1,4 @@
+# Importing required libraries
 import argparse
 import cv2
 import face_recognition
