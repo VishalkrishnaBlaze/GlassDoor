@@ -9,7 +9,7 @@ import platform
 import time
 
 from datetime import datetime, timedelta
-from user import add_user
+from user_data import user
 
 #--------------------------------------------#
 # Set this depending on your camera type (boolean)
@@ -20,6 +20,8 @@ known_face_encodings = []
 known_face_metadata = []
 known_users_encodings = []
 known_users_names = []
+
+user = user()
 
 #--------------------------------------------#
 # INSERT 'get_jetson_gstreamer_source' FUNCTION
@@ -217,7 +219,7 @@ def main_loop():
 
             # Write out the name of the visitor or label them as 'Unknown Person'
             visitor_name = f"{name}"
-            cv2.putText(frame, visitor_name, (right - 55, top - 6), cv2.FONT_HERSHEY_DUPLEX, 0.6, (255, 255, 255), 1)
+            cv2.putText(frame, visitor_name, (left, top - 6), cv2.FONT_HERSHEY_DUPLEX, 0.6, (255, 255, 255), 1)
 
         # Display recent visitor images
         number_of_recent_visitors = 0
@@ -262,12 +264,22 @@ if __name__ == "__main__":
 
     # Create arguments that can be passed to the program (reset, adduser, start)
     ap = argparse.ArgumentParser()
+
     ap.add_argument("-r", "--reset", type=bool, default=False,
-    help="Delete previously saved data (default: False)")
+    help="Delete previously saved data")
+
     ap.add_argument("-a", "--adduser", type=str,
-    help="Add a resident by giving resident name as argument (default: Resident)")
+    help="Add a resident by giving resident name as argument")
+
+    ap.add_argument("-d", "--deleteuser", type=str,
+    help="remove a residents data by giving resident name as argument")
+
+    ap.add_argument("-l", "--listusers", type=bool, default=False,
+    help="List out the saved residents names (default: False)")
+
     ap.add_argument("-s", "--start", type=bool, default=False,
     help="Start the main program (default: False)")
+
     args = vars(ap.parse_args())
 
     # Reset argument
@@ -283,9 +295,15 @@ if __name__ == "__main__":
     
     # Adduser argument
     if args["adduser"] is not None:
-        clear()
-        user = add_user()
-        user.save(args["adduser"])
+        user.add_user(args["adduser"])
+
+    # Deleteuser argument
+    if args["deleteuser"] is not None:
+        user.delete_user(args["deleteuser"])
+
+    # listuser argument
+    if args["listusers"] is True:
+        user.list_users()
 
     # Start the Main function Argument
     if args["start"] == True:
