@@ -31,6 +31,8 @@ class user:
         
         if os.path.exists(f"./Residents/{name}.jpeg"):
             print(f"[INFO] Resident {name} added to the database...")
+            cv2.imshow(f'User', faces)
+            cv2.waitKey(0)
 
         else:
             print("Please try again.")
