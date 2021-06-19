@@ -284,14 +284,14 @@ if __name__ == "__main__":
 
     # Reset argument
     if args["reset"] == True:
-        clear()
         if os.path.exists("known_faces.dat"):
             os.remove("known_faces.dat")
+            for file in os.scandir("./Residents"):
+                os.remove(file.path)
             print("[INFO] The previously saved face data has been deleted.")
-            time.sleep(2)
+
         else:
             print("[INFO] There was no previously saved data, proceding without any changes...")
-            time.sleep(2)
     
     # Adduser argument
     if args["adduser"] is not None:
